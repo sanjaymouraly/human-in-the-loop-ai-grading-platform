@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Login — HF Grader{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card p-4">
+            <h4 class="fw-bold mb-3">Login</h4>
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    {{ form.username }}
+                    <script>document.getElementById('id_username').classList.add('form-control')</script>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    {{ form.password }}
+                    <script>document.getElementById('id_password').classList.add('form-control')</script>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Login</button>
+            </form>
+            <div class="mt-3 small text-center">
+                No account? <a href="{% url 'signup' %}">Sign up</a>
+            </div>
+            <hr>
+            <div class="small text-muted">
+                <strong>Demo accounts (after seed):</strong><br>
+                admin / AdminPass123!<br>
+                manager / ManagerPass123!<br>
+                reviewer1 / ReviewerPass123!<br>
+                reviewer2 / ReviewerPass123!<br>
+                observer / ObserverPass123!
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

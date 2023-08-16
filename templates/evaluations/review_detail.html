@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Review {{ review.dataset_item.task_id }} — {{ project.name }}{% endblock %}
+{% block content %}
+<h4>Review Detail — {{ review.dataset_item.task_id }}</h4>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card p-3 mb-3">
+            <div><strong>Reviewer:</strong> {{ review.reviewer.username }} • <strong>Preference:</strong> <span class="badge bg-primary">{{ review.preference }}</span> (display: {{ review.display_preference }}) • <strong>Confidence:</strong> {{ review.confidence }}</div>
+            <div class="small text-muted mt-1">Rubric v{{ review.rubric.version }} • Submitted {{ review.submitted_at|date:"M d H:i" }} • Draft? {{ review.is_draft }}</div>
+            <div class="mt-2"><strong>Rationale:</strong><div class="response-box mt-1">{{ review.rationale }}</div></div>
+        </div>
+
+        <div class="card p-3 mb-3">
+            <h6>Prompt</h6><div class="response-box">{{ review.dataset_item.prompt }}</div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-6"><strong>Response A</strong><div class="response-box mt-1">{{ review.dataset_item.response_a }}</div></div>
+                <div class="col-md-6"><strong>Response B</strong><div class="response-box mt-1">{{ review.dataset_item.response_b }}</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white"><strong>Dimension Scores</strong></div>
+            <div class="card-body p-0">
+                <table class="table mb-0 small"><thead><tr><th>Dimension</th><th>A</th><th>B</th><th>N/A</th></tr></thead><tbody>{% for ds in review.dimension_scores.all %}<tr><td>{{ ds.dimension.name }}</td><td>{{ ds.score_a|default:"-" }}</td><td>{{ ds.score_b|default:"-" }}</td><td>{{ ds.is_na|yesno:"Yes,No" }}</td></tr>{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        {% if review.issues.all %}
+        <div class="card mt-3">
+            <div class="card-header bg-white"><strong>Issues</strong></div>
+            <div class="card-body">
+                {% for iss in review.issues.all %}
+                <div class="border rounded p-2 mb-2 small"><span class="badge bg-danger">{{ iss.category }}</span> {{ iss.explanation }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-lg-4">
+        <a href="{% url 'project_detail' project.pk %}" class="btn btn-outline-secondary btn-sm w-100 mb-2">Back to Project</a>
+        <a href="{% url 'review_workspace' review.assignment.pk %}" class="btn btn-outline-primary btn-sm w-100">Open in Workspace</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Calibration — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold"><i class="bi bi-bullseye"></i> Calibration Examples — {{ project.name }}</h4>
+    <a href="{% url 'analytics_dashboard' project.pk %}" class="btn btn-outline-secondary btn-sm">Back to Analytics</a>
+</div>
+
+<div class="alert alert-info">
+    <strong>What is calibration?</strong> These are examples with known reference labels to help reviewers align their judgments. Compare your evaluation against expert reference to improve consistency. These examples are illustrative and based on reference answers.
+</div>
+
+<div class="row g-4">
+    {% for item in calibration_items %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between">
+                <strong>{{ item.task_id }}</strong>
+                <span class="badge bg-light text-dark border">{{ item.model_a|default:"model-a" }} vs {{ item.model_b|default:"model-b" }}</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3"><strong>Prompt:</strong><div class="response-box mt-2">{{ item.prompt }}</div></div>
+                {% if item.context %}<div class="mb-3"><strong>Context:</strong><div class="response-box mt-2">{{ item.context }}</div></div>{% endif %}
+                {% if item.reference_answer %}<div class="mb-3"><strong>Reference Answer:</strong><div class="response-box mt-2 bg-success bg-opacity-10">{{ item.reference_answer }}</div></div>{% endif %}
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6>Response A</h6>
+                        <div class="response-box">{{ item.response_a }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Response B</h6>
+                        <div class="response-box">{{ item.response_b }}</div>
+                    </div>
+                </div>
+
+                {% for task_id, ref in reference_labels.items %}
+                    {% if task_id == item.task_id %}
+                    <div class="alert alert-success mt-3">
+                        <strong>Expert Reference:</strong> Preference = <span class="badge bg-success">{{ ref.preference }}</span><br>
+                        <strong>Reason:</strong> {{ ref.reason }}<br>
+                        <div class="small mt-2">Use this to calibrate your scoring. If you disagree, note your rationale and discuss with team.</div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not calibration_items %}
+<div class="empty-state card p-5"><i class="bi bi-bullseye"></i><div>No calibration items with reference answers found. Add reference_answer to dataset items.</div></div>
+{% endif %}
+{% endblock %}

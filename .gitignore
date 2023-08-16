@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static_root/
+
+# Env
+.env
+*.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+coverage.xml
+*.cover
+
+# Node / Playwright
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Docs images - keep screenshots
+# docs/images/*.png - allow screenshots for README
+!docs/images/*.png
+!docs/images/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Local caches and generated files
+.ruff_cache/
+.mypy_cache/
+*.db
+*.sqlite3
+coverage/
+.next/
+CHANGELOG.md
+
+# Playwright MCP browser captures
+.playwright-mcp/

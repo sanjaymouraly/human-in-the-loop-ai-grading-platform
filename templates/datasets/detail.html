@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Dataset {{ dataset.name }} — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>{{ dataset.name }} v{{ dataset.version }} — {{ project.name }}</h4>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dataset_list' project.pk %}" class="btn btn-outline-secondary btn-sm">Back</a>
+        <a href="{% url 'dataset_export' project.pk dataset.pk %}?format=csv" class="btn btn-outline-secondary btn-sm">Export CSV</a>
+        <a href="{% url 'dataset_export' project.pk dataset.pk %}?format=json" class="btn btn-outline-secondary btn-sm">Export JSON</a>
+    </div>
+</div>
+
+<div class="card p-3 mb-3">
+    <div class="row">
+        <div class="col-md-6"><strong>Description:</strong> {{ dataset.description|default:"-" }}</div>
+        <div class="col-md-3"><strong>Rows:</strong> {{ total_items }}</div>
+        <div class="col-md-3"><strong>File:</strong> {{ dataset.file_name }}</div>
+    </div>
+</div>
+
+<div class="card mb-3 p-3">
+    <form method="get" class="row g-2">
+        <div class="col-md-6"><input type="text" name="search" class="form-control form-control-sm" placeholder="Search task_id, prompt, responses..." value="{{ search }}"></div>
+        <div class="col-md-3"><button class="btn btn-sm btn-outline-secondary">Search</button> {% if search %}<a href="{% url 'dataset_detail' project.pk dataset.pk %}" class="btn btn-sm btn-outline-danger">Clear</a>{% endif %}</div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between">
+        <strong>Items ({{ total_items }})</strong>
+        <span class="small text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 small">
+                <thead class="table-light"><tr><th>Task ID</th><th>Prompt</th><th>Model A/B</th><th>Responses Preview</th></tr></thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">{{ item.task_id }}</td>
+                        <td style="max-width:300px">{{ item.prompt|truncatechars:120 }}</td>
+                        <td>{{ item.model_a|default:"-" }} / {{ item.model_b|default:"-" }}</td>
+                        <td>
+                            <div class="text-truncate" style="max-width:400px">
+                                <span class="badge bg-light text-dark">A</span> {{ item.response_a|truncatechars:80 }}<br>
+                                <span class="badge bg-light text-dark">B</span> {{ item.response_b|truncatechars:80 }}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white">
+        <nav>
+            <ul class="pagination mb-0">
+                {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Previous</a></li>{% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Next</a></li>{% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}

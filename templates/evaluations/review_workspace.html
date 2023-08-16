@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+{% block title %}Review {{ dataset_item.task_id }} — {{ project.name }}{% endblock %}
+{% block extra_head %}
+<style>
+    .rubric-card { border-left: 4px solid #4f46e5; }
+    .issue-badge { font-size: 0.75rem; }
+    .preference-option { border: 2px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; cursor: pointer; transition: all 0.2s; }
+    .preference-option:hover { border-color: #4f46e5; background: #f8fafc; }
+    .preference-option.selected { border-color: #4f46e5; background: #e0e7ff; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-1">Review: {{ dataset_item.task_id }}</h4>
+        <div class="small text-muted">Project: {{ project.name }} • Assignment #{{ assignment.id }} • Status: <span class="badge bg-light text-dark border">{{ assignment.get_status_display }}</span> • Reviewer: {{ assignment.reviewer.username }} • Display order: A is original {% if display_a_is_original_a %}A{% else %}B{% endif %}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reviewer_queue' %}" class="btn btn-outline-secondary btn-sm">Back to Queue</a>
+        <a href="{% url 'project_detail' project.pk %}" class="btn btn-outline-secondary btn-sm">Project</a>
+    </div>
+</div>
+
+{% if is_submitted %}
+<div class="alert alert-success"><i class="bi bi-check-circle"></i> This review has been submitted. {% if project.can_edit %}<span>You are manager, you can still edit via admin or create new review.</span>{% endif %}</div>
+{% endif %}
+
+<div class="row g-4">
+    <!-- Left: Prompt & Context -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white"><strong><i class="bi bi-chat-left-text"></i> Prompt & Context</strong></div>
+            <div class="card-body">
+                <div class="mb-3"><strong>Prompt:</strong><div class="response-box mt-2">{{ dataset_item.prompt }}</div></div>
+                {% if dataset_item.context %}<div class="mb-3"><strong>Context / Reference:</strong><div class="response-box mt-2">{{ dataset_item.context }}</div></div>{% endif %}
+                {% if dataset_item.reference_answer %}<div class="mb-2"><strong>Reference Answer:</strong><div class="response-box mt-2">{{ dataset_item.reference_answer }}</div></div>{% endif %}
+                {% if project.instructions %}<div class="alert alert-info small mt-3"><strong>Project Instructions:</strong> {{ project.instructions }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison -->
+    <div class="col-12">
+        <div class="row g-3 comparison-stack">
+            <div class="col-md-6">
+                <div class="comparison-panel">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0">Response A</h6>
+                        <span class="badge bg-light text-dark border">{{ model_display_a }}</span>
+                    </div>
+                    <div class="response-box" id="response-a">{{ display_a }}</div>
+                    <div class="mt-2 small text-muted">Original: {% if display_a_is_original_a %}A ({{ dataset_item.model_a|default:"?" }}){% else %}B ({{ dataset_item.model_b|default:"?" }}){% endif %}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="comparison-panel">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0">Response B</h6>
+                        <span class="badge bg-light text-dark border">{{ model_display_b }}</span>
+                    </div>
+                    <div class="response-box" id="response-b">{{ display_b }}</div>
+                    <div class="mt-2 small text-muted">Original: {% if display_a_is_original_a %}B ({{ dataset_item.model_b|default:"?" }}){% else %}A ({{ dataset_item.model_a|default:"?" }}){% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Form -->
+    <div class="col-lg-8">
+        <form method="post" id="review-form">
+            {% csrf_token %}
+            <div class="card">
+                <div class="card-header bg-white"><strong><i class="bi bi-card-checklist"></i> Rubric: {{ rubric.name }} v{{ rubric.version }}</strong><span class="small text-muted ms-2">{{ rubric.dimensions.count }} dimensions</span></div>
+                <div class="card-body">
+                    {% if rubric.instructions %}<div class="alert alert-light border small">{{ rubric.instructions }}</div>{% endif %}
+
+                    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+                    <!-- Preference -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Overall Preference <span class="text-danger">*</span></label>
+                        <div class="row g-2">
+                            {% for value, label in form.fields.preference.choices %}
+                            <div class="col-md-6">
+                                <label class="preference-option w-100 d-flex align-items-center gap-2">
+                                    <input type="radio" name="preference" value="{{ value }}" {% if form.initial.preference == value or form.data.preference == value %}checked{% endif %} required>
+                                    <span>
+                                        {% if value == "response_a" %}<i class="bi bi-arrow-left-circle"></i> Response A is better{% elif value == "response_b" %}Response B is better <i class="bi bi-arrow-right-circle"></i>{% elif value == "tie" %}<i class="bi bi-intersect"></i> Tie - equally good{% else %}<i class="bi bi-x-circle"></i> Both unacceptable{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.preference.errors %}<div class="text-danger small">{{ form.preference.errors }}</div>{% endif %}
+                    </div>
+
+                    <!-- Dimension Scores -->
+                    <h6 class="fw-semibold mt-4">Dimension Scores</h6>
+                    <p class="small text-muted">Score both responses per dimension. Use N/A if dimension not applicable.</p>
+                    {% load custom_filters %}
+                    {% for dim in rubric.dimensions.all %}
+                    <div class="dim-row">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ dim.name }}</strong> <span class="badge bg-light text-dark border">{{ dim.scale_min }}-{{ dim.scale_max }}</span> {% if dim.weight != 1.0 %}<span class="badge badge-accent">Weight {{ dim.weight }}</span>{% endif %}
+                                <div class="small text-muted">{{ dim.description }}</div>
+                                {% if dim.anchored_descriptions %}<div class="small text-muted mt-1"><em>Anchored:</em> {% for score, desc in dim.anchored_descriptions.items %}<span class="badge bg-light text-dark border">{{ score }}: {{ desc }}</span> {% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label small">Response A Score</label>
+                                <input type="number" name="dim_{{ dim.id }}_a" class="form-control" min="{{ dim.scale_min }}" max="{{ dim.scale_max }}" value="{{ form.initial|get_dim_a:dim.id }}" {% if not dim.allow_na %}required{% endif %} id="id_dim_{{ dim.id }}_a">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Response B Score</label>
+                                <input type="number" name="dim_{{ dim.id }}_b" class="form-control" min="{{ dim.scale_min }}" max="{{ dim.scale_max }}" value="{{ form.initial|get_dim_b:dim.id }}" {% if not dim.allow_na %}required{% endif %} id="id_dim_{{ dim.id }}_b">
+                            </div>
+                            {% if dim.allow_na %}
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="dim_{{ dim.id }}_na" id="id_dim_{{ dim.id }}_na" {% if form.initial|get_item:dim.id %}checked{% endif %}><label class="form-check-label small">N/A</label></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Confidence & Rationale -->
+                    <div class="row g-3 mt-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Confidence (1-5) *</label>
+                            <select name="confidence" class="form-select" required>
+                                <option value="1" {% if form.initial.confidence == 1 %}selected{% endif %}>1 - Low</option>
+                                <option value="2" {% if form.initial.confidence == 2 %}selected{% endif %}>2</option>
+                                <option value="3" {% if form.initial.confidence == 3 or not form.initial.confidence %}selected{% endif %}>3 - Medium</option>
+                                <option value="4" {% if form.initial.confidence == 4 %}selected{% endif %}>4</option>
+                                <option value="5" {% if form.initial.confidence == 5 %}selected{% endif %}>5 - High</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Rationale *</label>
+                            <textarea name="rationale" class="form-control" rows="4" required placeholder="Explain your preference, cite evidence, note issues...">{{ form.initial.rationale }}</textarea>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="time_spent_seconds" id="time_spent_input" value="{{ existing_review.time_spent_seconds|default:0 }}">
+
+                    <div class="mt-4 d-flex gap-2 align-items-center flex-wrap">
+                        <button type="submit" name="save_type" value="draft" class="btn btn-outline-secondary"><i class="bi bi-save"></i> Save Draft</button>
+                        <button type="submit" name="save_type" value="final" class="btn btn-primary"><i class="bi bi-check-lg"></i> Submit Final Review</button>
+                        <span class="small text-muted ms-2 align-self-center">
+                            <i class="bi bi-clock"></i> Time: <span id="time-tracker">0m 0s</span> | 
+                            <span id="autosave-indicator" class="small text-muted">Autosave enabled (every 30s)</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Issues -->
+        <div class="card mt-4">
+            <div class="card-header bg-white d-flex justify-content-between">
+                <strong><i class="bi bi-bug"></i> Reported Issues ({{ issues|length }})</strong>
+                <a href="{% url 'issue_create' assignment.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-plus"></i> Report Issue</a>
+            </div>
+            <div class="card-body">
+                {% if issues %}
+                    {% for issue in issues %}
+                    <div class="border rounded p-3 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <div><span class="badge bg-danger">{{ issue.get_category_display }}</span> <span class="badge bg-warning text-dark">{{ issue.get_severity_display }}</span> <span class="badge bg-light text-dark border">{{ issue.get_response_target_display }}</span></div>
+                            <form method="post" action="{% url 'issue_delete' assignment.pk issue.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form>
+                        </div>
+                        {% if issue.excerpt %}<div class="small mt-2"><strong>Excerpt:</strong> {{ issue.excerpt }}</div>{% endif %}
+                        <div class="small mt-1"><strong>Explanation:</strong> {{ issue.explanation }}</div>
+                        {% if issue.evidence %}<div class="small mt-1 text-muted"><strong>Evidence:</strong> {{ issue.evidence }}</div>{% endif %}
+                        {% if issue.correction %}<div class="small mt-1"><strong>Correction:</strong> {{ issue.correction }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="small text-muted">No issues reported yet. Use Report Issue to flag hallucinations, reasoning mistakes, etc.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right sidebar: guidance, other reviews -->
+    <div class="col-lg-4">
+        <div class="card p-3 mb-3">
+            <h6 class="fw-semibold"><i class="bi bi-info-circle"></i> Evaluation Guidance</h6>
+            <ul class="small text-muted ps-3 mb-0">
+                <li>Preference is distinct from correctness — a preferred response may still have issues</li>
+                <li>Use dimension scores to justify preference</li>
+                <li>Report structured issues with excerpt & evidence</li>
+                <li>Confidence reflects certainty in judgment</li>
+                <li>Blind review: model identities hidden</li>
+                <li>Original IDs preserved for reporting despite randomized display</li>
+            </ul>
+        </div>
+
+        {% if can_view_others %}
+        <div class="card">
+            <div class="card-header bg-white"><strong>Other Reviews for this Item</strong></div>
+            <div class="card-body">
+                {% if other_reviews %}
+                    {% for r in other_reviews %}
+                    <div class="border-bottom py-2 small">
+                        <div><strong>{{ r.reviewer.username }}</strong> • {{ r.preference }} • Conf {{ r.confidence }}</div>
+                        <div class="text-muted">{{ r.rationale|truncatechars:120 }}</div>
+                        <div class="mt-1"><a href="{% url 'review_detail' r.pk %}" class="btn btn-sm btn-outline-secondary">Details</a></div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="small text-muted">No other submitted reviews yet for this item.</div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card p-3">
+            <div class="small text-muted"><i class="bi bi-eye-slash"></i> Other reviewers' judgments are hidden until you submit your independent review (to avoid bias).</div>
+        </div>
+        {% endif %}
+
+        <div class="card mt-3 p-3">
+            <h6>Keyboard Shortcuts</h6>
+            <div class="small">
+                <div><span class="kbd">Tab</span> Navigate fields</div>
+                <div><span class="kbd">1-5</span> Score inputs (type number)</div>
+                <div><span class="kbd">Ctrl</span> + <span class="kbd">S</span> Save draft (browser save, not auto)</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Preference highlighting
+document.querySelectorAll('input[name=preference]').forEach(radio=>{
+    radio.addEventListener('change', function(){
+        document.querySelectorAll('.preference-option').forEach(el=>el.classList.remove('selected'));
+        this.closest('.preference-option').classList.add('selected');
+    });
+    if(radio.checked){
+        radio.closest('.preference-option').classList.add('selected');
+    }
+});
+
+// Time tracking
+let startTime = Date.now();
+let timeSpent = {{ existing_review.time_spent_seconds|default:0 }};
+let timerInterval = setInterval(() => {
+    let elapsed = Math.floor((Date.now() - startTime) / 1000);
+    let total = timeSpent + elapsed;
+    let minutes = Math.floor(total / 60);
+    let seconds = total % 60;
+    let el = document.getElementById('time-tracker');
+    if (el) el.textContent = `${minutes}m ${seconds}s`;
+    let input = document.getElementById('time_spent_input');
+    if (input) input.value = total;
+}, 1000);
+
+// Autosave draft every 30 seconds + on change
+let autosaveTimeout;
+let lastAutosave = 0;
+function collectFormData() {
+    const form = document.getElementById('review-form');
+    const formData = new FormData(form);
+    const data = {};
+    for (let [key, value] of formData.entries()) {
+        if (key === 'csrfmiddlewaretoken' || key === 'save_type') continue;
+        data[key] = value;
+    }
+    data['time_spent_seconds'] = document.getElementById('time_spent_input')?.value || 0;
+    return data;
+}
+
+function autosaveDraft() {
+    const data = collectFormData();
+    if (!data.preference && !data.rationale) return; // Don't autosave empty
+    
+    fetch("{% url 'api_autosave' assignment.pk %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(json => {
+        if (json.status === 'draft_saved') {
+            let indicator = document.getElementById('autosave-indicator');
+            if (indicator) {
+                indicator.textContent = `Draft autosaved at ${new Date().toLocaleTimeString()}`;
+                indicator.className = 'small text-success';
+                setTimeout(() => { indicator.textContent = 'Autosave enabled (every 30s)'; indicator.className = 'small text-muted'; }, 3000);
+            }
+        }
+    })
+    .catch(err => console.log('Autosave failed', err));
+}
+
+// Autosave every 30s
+setInterval(autosaveDraft, 30000);
+
+// Autosave on change with debounce
+document.getElementById('review-form')?.addEventListener('change', () => {
+    clearTimeout(autosaveTimeout);
+    autosaveTimeout = setTimeout(autosaveDraft, 2000);
+});
+
+// Ctrl+S to save draft
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        autosaveDraft();
+    }
+});
+
+// Restore from localStorage if exists (interrupted session)
+window.addEventListener('load', () => {
+    const saved = localStorage.getItem('review_draft_{{ assignment.pk }}');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            // Only restore if no existing review
+            {% if not existing_review %}
+            if (confirm('Found unsaved draft from interrupted session. Restore?')) {
+                for (let key in data) {
+                    let el = document.querySelector(`[name="${key}"]`);
+                    if (el) {
+                        if (el.type === 'radio') {
+                            let radio = document.querySelector(`[name="${key}"][value="${data[key]}"]`);
+                            if (radio) radio.checked = true;
+                        } else if (el.type === 'checkbox') {
+                            el.checked = data[key] === 'true' || data[key] === true;
+                        } else {
+                            el.value = data[key];
+                        }
+                    }
+                }
+            }
+            {% endif %}
+        } catch(e) {}
+    }
+});
+
+// Save to localStorage on input
+document.getElementById('review-form')?.addEventListener('input', () => {
+    const data = collectFormData();
+    localStorage.setItem('review_draft_{{ assignment.pk }}', JSON.stringify(data));
+});
+
+// Clear localStorage on submit
+document.getElementById('review-form')?.addEventListener('submit', () => {
+    localStorage.removeItem('review_draft_{{ assignment.pk }}');
+});
+</script>
+{% endblock %}

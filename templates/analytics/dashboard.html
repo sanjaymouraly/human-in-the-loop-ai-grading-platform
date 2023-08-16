@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Analytics — {{ project.name }}{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold"><i class="bi bi-graph-up"></i> Analytics — {{ project.name }}</h4>
+    <div class="d-flex gap-2">
+        <a href="{% url 'project_detail' project.pk %}" class="btn btn-outline-secondary btn-sm">Back</a>
+        <a href="{% url 'calibration_view' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bullseye"></i> Calibration</a>
+        <div class="dropdown">
+            <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Export</button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'export_report' project.pk %}?format=json">JSON</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_report' project.pk %}?format=jsonl">JSONL</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_report' project.pk %}?format=csv">CSV</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'anonymized_export' project.pk %}">Anonymized JSON</a></li>
+                <li><a class="dropdown-item" href="{% url 'api_report' project.pk %}">API Report (JSON)</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2"><div class="card p-3"><div class="small text-muted">Items</div><div class="h4 fw-bold">{{ summary.total_items }}</div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="small text-muted">Assignments</div><div class="h4 fw-bold">{{ summary.total_assignments }}</div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="small text-muted">Reviews</div><div class="h4 fw-bold">{{ summary.total_reviews }}</div><div class="small text-muted">{{ summary.total_drafts }} drafts</div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="small text-muted">Completion</div><div class="h4 fw-bold">{{ summary.completion_pct }}%</div><div class="progress progress-thin"><div class="progress-bar" style="width: {{ summary.completion_pct }}%"></div></div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="small text-muted">A Wins</div><div class="h4 fw-bold text-primary">{{ summary.model_stats.response_a_wins }}</div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="small text-muted">B Wins</div><div class="h4 fw-bold text-success">{{ summary.model_stats.response_b_wins }}</div><div class="small">Tie {{ summary.model_stats.ties }} • Both bad {{ summary.model_stats.both_bad }}</div></div></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>Preference Distribution</h6>
+            <div id="pref-chart" style="height:300px"></div>
+            <div class="small text-muted mt-2">Distinguishes human preference from factual correctness; preferred ≠ verified.</div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>Average Dimension Scores (A vs B)</h6>
+            <div id="dim-chart" style="height:300px"></div>
+            <div class="small text-muted mt-2">Only comparable where scales match. Weights not applied to averages.</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header bg-white"><strong>Inter-Rater Agreement</strong></div>
+            <div class="card-body">
+                {% if kappa_result %}
+                    <div class="mb-3">
+                        <h6>Overall Cohen's Kappa (2 reviewers per item)</h6>
+                        {% if kappa_result.kappa is not None %}<div class="h4">κ = {{ kappa_result.kappa|floatformat:3 }}</div>{% else %}<div class="text-warning">Kappa undefined: {{ kappa_result.error }}</div>{% endif %}
+                        <div class="small">Percent Agreement: {% if kappa_result.percent_agreement %}{{ kappa_result.percent_agreement|floatformat:2 }} ({{ kappa_result.percent_agreement|floatformat:0 }}%){% else %}N/A{% endif %} • N paired: {{ kappa_result.total_paired }}</div>
+                        {% if kappa_result.confusion_matrix %}
+                        <div class="mt-2 small"><strong>Confusion Matrix</strong> (labels: {{ kappa_result.labels }})<br>
+                            <pre class="small p-2">{{ kappa_result.confusion_matrix }}</pre>
+                        </div>
+                        {% endif %}
+                        {% if kappa_result.error %}<div class="alert alert-warning small mt-2">{{ kappa_result.error }} — Kappa requires ≥2 categories and paired observations. Small samples show uncertainty.</div>{% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-muted small">No paired reviews found for kappa. Need same item reviewed by 2 reviewers.</div>
+                {% endif %}
+
+                {% if pair_kappas %}
+                <h6 class="mt-4">Pairwise Kappa</h6>
+                <table class="table table-sm small"><thead><tr><th>Reviewer 1</th><th>Reviewer 2</th><th>Kappa</th><th>Agreement</th><th>N</th></tr></thead><tbody>{% for pk in pair_kappas %}<tr><td>{{ pk.reviewer1 }}</td><td>{{ pk.reviewer2 }}</td><td>{% if pk.kappa is not None %}{{ pk.kappa|floatformat:3 }}{% else %}N/A{% endif %}</td><td>{% if pk.percent_agreement %}{{ pk.percent_agreement|floatformat:2 }}{% else %}N/A{% endif %}</td><td>{{ pk.n }}</td></tr>{% endfor %}</tbody></table>
+                {% endif %}
+
+                {% if fleiss_result %}
+                <div class="mt-4">
+                    <h6>Fleiss' Kappa (>2 reviewers)</h6>
+                    {% if fleiss_result.kappa is not None %}<div>Kappa = {{ fleiss_result.kappa|floatformat:3 }} • P_bar {{ fleiss_result.P_bar|floatformat:3 }} • P_e {{ fleiss_result.P_e_bar|floatformat:3 }} • N {{ fleiss_result.n }}</div>{% else %}<div class="text-warning">{{ fleiss_result.error }}</div>{% endif %}
+                    <div class="small text-muted mt-1">Fleiss' kappa suitable when same number of raters per item and categorical labels. Categories: {{ fleiss_result.categories }}</div>
+                </div>
+                {% endif %}
+
+                <div class="alert alert-light border small mt-3">
+                    <strong>Methodology Notes:</strong>
+                    <ul class="mb-0 ps-3">
+                        <li>Cohen's kappa computed only on items rated by both reviewers with matching rubric</li>
+                        <li>Skipped / missing ratings excluded, not merged into categories</li>
+                        <li>Weighted kappa: linear/quadratic weights for ordered scales (not yet applied to preference, but available for dimension scores)</li>
+                        <li>Single-category outcomes → kappa undefined (reported as warning)</li>
+                        <li>Small samples: interpret with caution, no objective "good/bad" thresholds</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card mb-3">
+            <div class="card-header bg-white"><strong>Reviewer Productivity</strong></div>
+            <div class="card-body p-0">
+                {% if summary.reviewer_productivity %}
+                <table class="table table-sm mb-0 small"><thead><tr><th>Reviewer</th><th>Reviews</th></tr></thead><tbody>{% for rp in summary.reviewer_productivity %}<tr><td>{{ rp.reviewer__username }}</td><td>{{ rp.review_count }}</td></tr>{% endfor %}</tbody></table>
+                {% else %}<div class="p-3 small text-muted">No reviews</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-white small"><strong>Issues by Category</strong></div>
+                    <div class="card-body p-0">
+                        {% if summary.issue_by_category %}
+                        <table class="table table-sm mb-0 small"><thead><tr><th>Category</th><th>Count</th></tr></thead><tbody>{% for ic in summary.issue_by_category %}<tr><td>{{ ic.category }}</td><td>{{ ic.count }}</td></tr>{% endfor %}</tbody></table>
+                        {% else %}<div class="p-3 small text-muted">No issues</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-white small"><strong>Issues by Severity</strong></div>
+                    <div class="card-body p-0">
+                        {% if summary.issue_by_severity %}
+                        <table class="table table-sm mb-0 small"><thead><tr><th>Severity</th><th>Count</th></tr></thead><tbody>{% for iss in summary.issue_by_severity %}<tr><td>{{ iss.severity }}</td><td>{{ iss.count }}</td></tr>{% endfor %}</tbody></table>
+                        {% else %}<div class="p-3 small text-muted">No issues</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3 p-3">
+            <h6>Time Spent</h6>
+            {% if summary.time_stats.avg %}<div class="small">Avg: {{ summary.time_stats.avg|floatformat:1 }}s • Median: {{ summary.time_stats.median|floatformat:1 }}s • Min {{ summary.time_stats.min }}s • Max {{ summary.time_stats.max }}s</div>{% else %}<div class="small text-muted">No timing data (time_spent not tracked in this version)</div>{% endif %}
+        </div>
+
+        <div class="card mt-3 p-3">
+            <h6>Dimension Summary</h6>
+            {% if summary.dim_summary %}
+            <table class="table table-sm small"><thead><tr><th>Dimension</th><th>Avg A</th><th>Avg B</th><th>Count</th></tr></thead><tbody>{% for d in summary.dim_summary %}<tr><td>{{ d.dimension }}</td><td>{{ d.avg_a|floatformat:2|default:"-" }}</td><td>{{ d.avg_b|floatformat:2|default:"-" }}</td><td>{{ d.count_a }}/{{ d.count_b }}</td></tr>{% endfor %}</tbody></table>
+            {% else %}<div class="small text-muted">No dimension scores</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const prefLabels = {{ pref_labels_json|safe }};
+const prefValues = {{ pref_values_json|safe }};
+if (prefLabels.length) {
+    Plotly.newPlot('pref-chart', [{labels: prefLabels, values: prefValues, type: 'pie', marker: {colors: ['#4f46e5','#10b981','#f59e0b','#ef4444']}}], {margin:{t:10,b:10,l:10,r:10}}, {displayModeBar:false});
+} else {
+    document.getElementById('pref-chart').innerHTML = '<div class="text-muted small p-3">No data</div>';
+}
+
+const dimNames = {{ dim_names_json|safe }};
+const dimAvgA = {{ dim_avg_a_json|safe }};
+const dimAvgB = {{ dim_avg_b_json|safe }};
+if (dimNames.length) {
+    Plotly.newPlot('dim-chart', [
+        {x: dimNames, y: dimAvgA, name: 'Response A', type: 'bar', marker:{color:'#4f46e5'}},
+        {x: dimNames, y: dimAvgB, name: 'Response B', type: 'bar', marker:{color:'#10b981'}}
+    ], {barmode:'group', margin:{t:10,b:120,l:40,r:10}, xaxis:{tickangle:-30}}, {displayModeBar:false});
+} else {
+    document.getElementById('dim-chart').innerHTML = '<div class="text-muted small p-3">No dimension data</div>';
+}
+</script>
+{% endblock %}

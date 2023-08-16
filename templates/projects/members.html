@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Members — {{ project.name }}{% endblock %}
+{% block content %}
+<h4>{{ project.name }} — Members</h4>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead><tr><th>User</th><th>Role</th><th>Added</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for m in members %}
+                        <tr><td>{{ m.user.username }} ({{ m.user.email }})</td><td><span class="badge bg-light text-dark border">{{ m.get_role_display }}</span></td><td class="small">{{ m.added_at|date:"M d, Y" }}</td><td>{% if m.user != project.created_by %}<form method="post" action="{% url 'project_member_remove' project.pk m.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="small text-muted">Owner</span>{% endif %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3">
+            <h6>Add Member</h6>
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="mb-3"><label class="form-label">{{ field.label }}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}</div>
+                {% endfor %}
+                <script>document.querySelectorAll('input, select').forEach(el=>el.classList.add('form-control'))</script>
+                <button class="btn btn-primary w-100">Add/Update</button>
+            </form>
+            <div class="small text-muted mt-3">User must already have an account. Use signup to create users.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+[
+  {
+    "task_id": "qa_001",
+    "prompt": "What is the capital of France?",
+    "context": "",
+    "response_a": "Paris is the capital of France. It is known for its rich history, culture, and landmarks like the Eiffel Tower.",
+    "response_b": "Lyon is the capital of France, located in the southeast. It is famous for its cuisine and historical architecture.",
+    "model_a": "model-gpt4",
+    "model_b": "model-claude",
+    "reference_answer": "Paris",
+    "metadata": {"difficulty": "easy", "category": "geography"}
+  },
+  {
+    "task_id": "code_001",
+    "prompt": "Write a Python function to check if a number is prime.",
+    "context": "Function should handle edge cases and be efficient.",
+    "response_a": "def is_prime(n):\n    if n < 2:\n        return False\n    if n == 2:\n        return True\n    if n % 2 == 0:\n        return False\n    for i in range(3, int(n**0.5)+1, 2):\n        if n % i == 0:\n            return False\n    return True",
+    "response_b": "def is_prime(n):\n    for i in range(2, n):\n        if n % i == 0:\n            return False\n    return True",
+    "model_a": "model-codex",
+    "model_b": "model-codellama",
+    "metadata": {"language": "python"}
+  },
+  {
+    "task_id": "summ_001",
+    "prompt": "Summarize the following article in 2 sentences.",
+    "context": "Artificial intelligence (AI) has seen rapid growth in recent years, driven by advances in deep learning, increased computational power, and large datasets. Applications range from image recognition to natural language processing. However, challenges remain including bias, interpretability, and energy consumption.",
+    "response_a": "AI has grown rapidly due to deep learning, compute, and data, enabling applications like vision and NLP, but faces challenges in bias, interpretability, and energy use.",
+    "response_b": "AI is growing fast and is used for many things. It has some problems but people are fixing them.",
+    "model_a": "model-gpt4",
+    "model_b": "model-claude"
+  }
+]

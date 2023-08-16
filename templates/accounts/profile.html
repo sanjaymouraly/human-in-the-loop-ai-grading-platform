@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Profile — HF Grader{% endblock %}
+{% block content %}
+<div class="card p-4">
+    <h4>Profile: {{ user.username }}</h4>
+    <p>Email: {{ user.email }}</p>
+    <p>Role: {{ user.profile.get_role_display }}</p>
+    <p>Joined: {{ user.date_joined }}</p>
+</div>
+{% endblock %}

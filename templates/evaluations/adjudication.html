@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Adjudicate {{ item.task_id }} — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Adjudicate: {{ item.task_id }} — {{ project.name }}</h4>
+    <a href="{% url 'disagreement_list' project.pk %}" class="btn btn-outline-secondary btn-sm">Back to Disagreements</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card p-3 mb-3">
+            <h6>Prompt</h6>
+            <div class="response-box">{{ item.prompt }}</div>
+            {% if item.context %}<div class="mt-2"><strong>Context:</strong><div class="response-box">{{ item.context }}</div></div>{% endif %}
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6"><div class="comparison-panel"><h6>Response A ({{ item.model_a|default:"?" }})</h6><div class="response-box">{{ item.response_a }}</div></div></div>
+            <div class="col-md-6"><div class="comparison-panel"><h6>Response B ({{ item.model_b|default:"?" }})</h6><div class="response-box">{{ item.response_b }}</div></div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white"><strong>Reviews ({{ reviews.count }})</strong></div>
+            <div class="card-body">
+                {% for r in reviews %}
+                <div class="border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between"><strong>{{ r.reviewer.username }}</strong><span class="badge {% if r.preference == 'response_a' %}bg-primary{% elif r.preference == 'response_b' %}bg-success{% else %}bg-secondary{% endif %}">{{ r.preference }} (conf {{ r.confidence }})</span></div>
+                    <div class="small text-muted mt-1">Rubric v{{ r.rubric.version }} • {{ r.submitted_at|date:"M d H:i" }}</div>
+                    <div class="small mt-2"><strong>Rationale:</strong> {{ r.rationale }}</div>
+                    <div class="mt-2">
+                        <strong class="small">Dimension Scores:</strong>
+                        <div class="table-responsive"><table class="table table-sm small"><thead><tr><th>Dimension</th><th>A</th><th>B</th></tr></thead><tbody>{% for ds in r.dimension_scores.all %}<tr><td>{{ ds.dimension.name }}</td><td>{{ ds.score_a|default:"N/A" }}</td><td>{{ ds.score_b|default:"N/A" }}</td></tr>{% endfor %}</tbody></table></div>
+                    </div>
+                    {% if r.issues.all %}
+                    <div class="mt-2"><strong class="small">Issues:</strong><ul class="small mb-0">{% for iss in r.issues.all %}<li>{{ iss.get_category_display }} ({{ iss.severity }}) on {{ iss.response_target }}: {{ iss.explanation|truncatechars:100 }}</li>{% endfor %}</ul></div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3">
+            <h6>Final Adjudication</h6>
+            {% if adjudication %}<div class="alert alert-info small">Already adjudicated by {{ adjudication.adjudicator.username }} on {{ adjudication.created_at|date:"M d, Y" }}</div>{% endif %}
+            <form method="post">
+                {% csrf_token %}
+                {% if form.errors %}<div class="alert alert-danger">{{ form.errors }}</div>{% endif %}
+                <div class="mb-3"><label class="form-label fw-semibold">Final Preference *</label>{% for value, label in form.fields.final_preference.choices %}<div class="form-check"><input class="form-check-input" type="radio" name="final_preference" value="{{ value }}" id="id_pref_{{ value }}" {% if form.initial.final_preference == value %}checked{% endif %} required><label class="form-check-label" for="id_pref_{{ value }}">{{ label }}</label></div>{% endfor %}</div>
+                <div class="mb-3"><label class="form-label fw-semibold">Rationale *</label><textarea name="rationale" class="form-control" rows="5" required>{{ form.initial.rationale }}</textarea><div class="form-text">Explain how you resolved disagreement, citing evidence.</div></div>
+                <button class="btn btn-primary w-100">Save Adjudication</button>
+            </form>
+            <div class="small text-muted mt-3">Original judgments are preserved in review history. Adjudication does not overwrite them; it records final decision separately.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

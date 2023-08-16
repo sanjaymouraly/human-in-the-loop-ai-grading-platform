@@ -1,0 +1,2 @@
+{"task_id": "qa_001", "prompt": "What is the capital of France?", "response_a": "Paris is the capital of France.", "response_b": "Lyon is the capital.", "model_a": "model-x", "model_b": "model-y", "reference_answer": "Paris"}
+{"task_id": "code_001", "prompt": "Write a Python function to check if a number is prime.", "response_a": "def is_prime(n): ... efficient", "response_b": "def is_prime(n): ... inefficient", "model_a": "codex", "model_b": "codellama"}

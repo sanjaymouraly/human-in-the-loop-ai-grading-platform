@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Projects — HF Grader{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">Projects</h3>
+    <a href="{% url 'project_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Project</a>
+</div>
+
+<div class="card mb-4 p-3">
+    <form method="get" class="row g-2">
+        <div class="col-md-4"><input type="text" name="search" class="form-control form-control-sm" placeholder="Search name, description..." value="{{ search }}"></div>
+        <div class="col-md-2"><select name="task_type" class="form-select form-select-sm"><option value="">All Types</option><option value="qa" {% if task_type_filter == "qa" %}selected{% endif %}>Factual QA</option><option value="coding" {% if task_type_filter == "coding" %}selected{% endif %}>Coding</option><option value="summarization" {% if task_type_filter == "summarization" %}selected{% endif %}>Summarization</option><option value="instruction" {% if task_type_filter == "instruction" %}selected{% endif %}>Instruction</option><option value="reasoning" {% if task_type_filter == "reasoning" %}selected{% endif %}>Reasoning</option><option value="general" {% if task_type_filter == "general" %}selected{% endif %}>General</option></select></div>
+        <div class="col-md-2"><select name="status" class="form-select form-select-sm"><option value="">All Status</option><option value="draft" {% if status_filter == "draft" %}selected{% endif %}>Draft</option><option value="active" {% if status_filter == "active" %}selected{% endif %}>Active</option><option value="completed" {% if status_filter == "completed" %}selected{% endif %}>Completed</option><option value="archived" {% if status_filter == "archived" %}selected{% endif %}>Archived</option></select></div>
+        <div class="col-md-2"><select name="sort" class="form-select form-select-sm"><option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>Newest</option><option value="created_at" {% if sort == "created_at" %}selected{% endif %}>Oldest</option><option value="name" {% if sort == "name" %}selected{% endif %}>Name A-Z</option><option value="-name" {% if sort == "-name" %}selected{% endif %}>Name Z-A</option></select></div>
+        <div class="col-md-2"><button class="btn btn-sm btn-outline-secondary">Filter</button> {% if search or task_type_filter or status_filter %}<a href="{% url 'project_list' %}" class="btn btn-sm btn-outline-danger">Clear</a>{% endif %}</div>
+    </form>
+</div>
+
+{% if projects %}
+<div class="row g-3">
+    {% for project in projects %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h6 class="fw-semibold"><a href="{% url 'project_detail' project.pk %}" class="text-decoration-none">{{ project.name }}</a></h6>
+                    <span class="badge {% if project.status == 'active' %}bg-success{% elif project.status == 'draft' %}bg-warning{% elif project.status == 'completed' %}bg-primary{% else %}bg-secondary{% endif %}">{{ project.get_status_display }}</span>
+                </div>
+                <p class="small text-muted">{{ project.description|truncatechars:120 }}</p>
+                <div class="d-flex gap-2 small text-muted">
+                    <span><i class="bi bi-tag"></i> {{ project.get_task_type_display }}</span>
+                    <span><i class="bi bi-database"></i> {{ project.dataset_count }} datasets</span>
+                    <span><i class="bi bi-list-task"></i> {{ project.item_count }} items</span>
+                </div>
+                <div class="mt-2 small text-muted">Created {{ project.created_at|date:"M d, Y" }} • {{ project.member_count }} members</div>
+                <div class="mt-2">
+                    {% if project.blind_review %}<span class="badge bg-light text-dark border">Blind</span>{% endif %}
+                    {% if project.require_double_review %}<span class="badge bg-light text-dark border">Double Review</span>{% endif %}
+                </div>
+            </div>
+            <div class="card-footer bg-white d-flex gap-2">
+                <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-outline-primary">Open</a>
+                <a href="{% url 'analytics_dashboard' project.pk %}" class="btn btn-sm btn-outline-secondary">Analytics</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state card p-5"><i class="bi bi-folder-x"></i><div>No projects found.</div><a href="{% url 'project_create' %}" class="btn btn-primary mt-3">Create Project</a></div>
+{% endif %}
+{% endblock %}

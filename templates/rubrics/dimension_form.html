@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ rubric.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h4 class="fw-bold">{{ title }} — {{ rubric.name }} v{{ rubric.version }}</h4>
+            <form method="post">
+                {% csrf_token %}
+                {% if form.errors %}<div class="alert alert-danger">{{ form.errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3"><label class="form-label fw-semibold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}</div>
+                {% endfor %}
+                <script>document.querySelectorAll('input, textarea, select').forEach(el=>{ if(!el.classList.contains('form-check-input')) el.classList.add('form-control'); }); document.querySelectorAll('input[type=checkbox]').forEach(el=>{ el.classList.remove('form-control'); el.classList.add('form-check-input'); });</script>
+                <div class="d-flex gap-2"><button class="btn btn-primary">Save</button><a href="{% url 'rubric_detail' project.pk rubric.pk %}" class="btn btn-outline-secondary">Cancel</a></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

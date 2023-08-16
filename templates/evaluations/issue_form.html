@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Report Issue — {{ assignment.dataset_item.task_id }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h4>Report Issue for {{ assignment.dataset_item.task_id }}</h4>
+            <p class="small text-muted">Project: {{ assignment.project.name }} • Reviewer: {{ assignment.reviewer.username }}</p>
+            <form method="post">
+                {% csrf_token %}
+                {% if form.errors %}<div class="alert alert-danger">{{ form.errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3"><label class="form-label fw-semibold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}</div>
+                {% endfor %}
+                <script>document.querySelectorAll('input, textarea, select').forEach(el=>el.classList.add('form-control'))</script>
+                <div class="d-flex gap-2"><button class="btn btn-danger">Report Issue</button><a href="{% url 'review_workspace' assignment.pk %}" class="btn btn-outline-secondary">Cancel</a></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

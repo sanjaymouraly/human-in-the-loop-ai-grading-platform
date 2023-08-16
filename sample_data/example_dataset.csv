@@ -1,0 +1,4 @@
+task_id,prompt,context,response_a,response_b,model_a,model_b,reference_answer
+qa_001,What is the capital of France?,,"Paris is the capital of France.","Lyon is the capital.",model-x,model-y,Paris
+code_001,Write a Python function to check if a number is prime.,Handle edge cases,"def is_prime(n): ... efficient","def is_prime(n): ... inefficient",codex,codellama,
+summ_001,Summarize AI growth,AI has grown rapidly...,Good summary,Bad summary,gpt4,claude,

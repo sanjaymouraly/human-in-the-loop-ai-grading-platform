@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ rubric.name }} — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold">{{ rubric.name }} v{{ rubric.version }} {% if rubric.is_active %}<span class="badge bg-success">Active</span>{% endif %}</h4>
+        <div class="small text-muted">Project: {{ project.name }} • Created {{ rubric.created_at|date:"M d, Y" }} by {{ rubric.created_by.username|default:"-" }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'rubric_list' project.pk %}" class="btn btn-outline-secondary btn-sm">Back</a>
+        {% if can_edit %}
+        <a href="{% url 'rubric_edit' project.pk rubric.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+        <form method="post" action="{% url 'rubric_clone' project.pk rubric.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm">Clone</button></form>
+        <a href="{% url 'dimension_create' project.pk rubric.pk %}" class="btn btn-primary btn-sm">Add Dimension</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card p-3 mb-3">
+            <h6>Description</h6>
+            <p class="small">{{ rubric.description|default:"No description" }}</p>
+            {% if rubric.instructions %}<div class="alert alert-info small"><strong>Instructions for reviewers:</strong><br>{{ rubric.instructions|linebreaks }}</div>{% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white"><strong>Dimensions ({{ dimensions.count }})</strong></div>
+            <div class="card-body p-0">
+                {% if dimensions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 small">
+                        <thead class="table-light"><tr><th>Order</th><th>Key</th><th>Name</th><th>Scale</th><th>Weight</th><th>NA?</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for d in dimensions %}
+                            <tr>
+                                <td>{{ d.order }}</td>
+                                <td><code>{{ d.key }}</code></td>
+                                <td><strong>{{ d.name }}</strong><div class="text-muted">{{ d.description|truncatechars:80 }}</div></td>
+                                <td>{{ d.scale_min }}-{{ d.scale_max }}</td>
+                                <td>{{ d.weight }}</td>
+                                <td>{{ d.allow_na|yesno:"Yes,No" }}</td>
+                                <td>
+                                    {% if can_edit %}
+                                    <a href="{% url 'dimension_edit' project.pk rubric.pk d.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <form method="post" action="{% url 'dimension_delete' project.pk rubric.pk d.pk %}" class="d-inline" onsubmit="return confirm('Delete?')">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Del</button></form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if d.anchored_descriptions %}
+                            <tr><td colspan="7" class="bg-light"><small><strong>Anchored:</strong> {{ d.anchored_descriptions }}</small></td></tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state"><i class="bi bi-card-checklist"></i><div>No dimensions yet</div></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3">
+            <h6>How Rubric Versioning Works</h6>
+            <p class="small text-muted">Every review stores the rubric version used. When you edit or clone a rubric, a new version is created. Old reviews remain interpretable with their original rubric.</p>
+            <ul class="small text-muted">
+                <li>Dimensions have scale_min/scale_max, weight, optional N/A</li>
+                <li>Anchored descriptions help reviewers calibrate</li>
+                <li>Weights affect aggregate but not kappa</li>
+                <li>New rubric version auto-increments per project</li>
+            </ul>
+        </div>
+        <div class="card p-3 mt-3">
+            <h6>Usage</h6>
+            <div class="small">This rubric will be used for all new reviews in project <strong>{{ project.name }}</strong>. Latest active rubric is automatically selected in review workspace.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

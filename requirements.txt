@@ -1,0 +1,13 @@
+Django>=5.2,<6.2
+python-dotenv>=1.0
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+plotly>=5.24
+Pillow>=11.0
+whitenoise>=6.8
+gunicorn>=23.0
+pytest>=8.3
+pytest-django>=4.9
+playwright>=1.49
+python-multipart>=0.0.12

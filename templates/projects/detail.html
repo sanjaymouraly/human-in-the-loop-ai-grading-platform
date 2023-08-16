@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — HF Grader{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">{{ project.name }}</h3>
+        <div class="text-muted small">{{ project.get_task_type_display }} • <span class="status-dot status-{{ project.status }}"></span>{{ project.get_status_display }} • Created {{ project.created_at|date:"M d, Y" }} by {{ project.created_by.username }}</div>
+        <p class="mt-2">{{ project.description }}</p>
+        {% if project.instructions %}<div class="alert alert-info"><strong>Instructions:</strong> {{ project.instructions }}</div>{% endif %}
+        {% if project.goal %}<div class="alert alert-light border"><strong>Goal:</strong> {{ project.goal }}</div>{% endif %}
+    </div>
+    <div class="d-flex flex-column gap-2">
+        {% if can_edit %}
+        <a href="{% url 'project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="{% url 'project_members' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people"></i> Members</a>
+        {% endif %}
+        <a href="{% url 'analytics_dashboard' project.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-graph-up"></i> Analytics</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card p-3"><div class="small text-muted">Total Items</div><div class="h4 fw-bold">{{ total_items }}</div></div></div>
+    <div class="col-md-3"><div class="card p-3"><div class="small text-muted">Assignments</div><div class="h4 fw-bold">{{ total_assignments }}</div><div class="small">{{ submitted_assignments }} submitted ({{ completion_pct }}%)</div><div class="progress progress-thin mt-1"><div class="progress-bar" style="width: {{ completion_pct }}%"></div></div></div></div>
+    <div class="col-md-3"><div class="card p-3"><div class="small text-muted">Datasets</div><div class="h4 fw-bold">{{ datasets.count }}</div></div></div>
+    <div class="col-md-3"><div class="card p-3"><div class="small text-muted">Members</div><div class="h4 fw-bold">{{ members.count }}</div></div></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#datasets">Datasets</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#reviews">Recent Reviews</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#audit">Audit Log</button></li>
+        </ul>
+        <div class="tab-content card p-3 border-top-0 rounded-top-0">
+            <div class="tab-pane fade show active" id="datasets">
+                <div class="d-flex justify-content-between mb-3"><strong>Datasets</strong><a href="{% url 'dataset_upload' project.pk %}" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> Upload</a></div>
+                {% if datasets %}
+                <div class="table-responsive"><table class="table table-hover"><thead><tr><th>Name</th><th>Version</th><th>Rows</th><th>Created</th><th>Actions</th></tr></thead><tbody>{% for ds in datasets %}<tr><td>{{ ds.name }}</td><td>v{{ ds.version }}</td><td>{{ ds.row_count }}</td><td class="small">{{ ds.created_at|date:"M d" }}</td><td><a href="{% url 'dataset_detail' project.pk ds.pk %}" class="btn btn-sm btn-outline-secondary">View</a></td></tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="empty-state"><i class="bi bi-database-x"></i><div>No datasets yet</div></div>{% endif %}
+                <hr>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'dataset_list' project.pk %}" class="btn btn-sm btn-outline-secondary">All Datasets</a>
+                    <a href="{% url 'rubric_list' project.pk %}" class="btn btn-sm btn-outline-secondary">Rubrics</a>
+                    <a href="{% url 'assignment_list' project.pk %}" class="btn btn-sm btn-outline-secondary">Assignments</a>
+                    <a href="{% url 'disagreement_list' project.pk %}" class="btn btn-sm btn-outline-secondary">Disagreements</a>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="reviews">
+                {% if recent_reviews %}
+                <div class="table-responsive"><table class="table"><thead><tr><th>Task</th><th>Reviewer</th><th>Preference</th><th>Submitted</th></tr></thead><tbody>{% for r in recent_reviews %}<tr><td>{{ r.dataset_item.task_id }}</td><td>{{ r.reviewer.username }}</td><td><span class="badge bg-light text-dark border">{{ r.preference }}</span></td><td class="small">{{ r.submitted_at|timesince }} ago</td></tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="text-muted">No reviews yet</div>{% endif %}
+            </div>
+            <div class="tab-pane fade" id="audit">
+                {% if audit_logs %}
+                <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>{% for log in audit_logs %}<tr><td class="small">{{ log.timestamp|date:"M d H:i" }}</td><td>{{ log.user.username|default:"system" }}</td><td><span class="badge bg-light text-dark">{{ log.action }}</span></td><td class="small">{{ log.details }}</td></tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="text-muted small">No audit logs</div>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-white"><strong>Quick Actions</strong></div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'dataset_upload' project.pk %}" class="list-group-item list-group-item-action"><i class="bi bi-upload"></i> Upload Dataset</a>
+                <a href="{% url 'rubric_create' project.pk %}" class="list-group-item list-group-item-action"><i class="bi bi-card-checklist"></i> Create Rubric</a>
+                <a href="{% url 'assignment_create' project.pk %}" class="list-group-item list-group-item-action"><i class="bi bi-person-plus"></i> Assign Reviewers</a>
+                <a href="{% url 'analytics_dashboard' project.pk %}" class="list-group-item list-group-item-action"><i class="bi bi-graph-up"></i> View Analytics</a>
+                <a href="{% url 'export_report' project.pk %}?format=jsonl" class="list-group-item list-group-item-action"><i class="bi bi-download"></i> Export JSONL</a>
+            </div>
+        </div>
+        <div class="card mt-3">
+            <div class="card-header bg-white"><strong>Members ({{ members.count }})</strong></div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for m in members %}
+                    <li class="list-group-item d-flex justify-content-between"><span>{{ m.user.username }}</span><span class="badge bg-light text-dark">{{ m.role }}</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="card mt-3 p-3">
+            <h6 class="fw-semibold">Project Settings</h6>
+            <div class="small">
+                <div>Blind Review: <span class="badge {% if project.blind_review %}bg-success{% else %}bg-secondary{% endif %}">{{ project.blind_review|yesno:"Enabled,Disabled" }}</span></div>
+                <div class="mt-1">Double Review: <span class="badge {% if project.require_double_review %}bg-success{% else %}bg-secondary{% endif %}">{{ project.require_double_review|yesno:"Required,Optional" }}</span></div>
+                <div class="mt-1">Balanced A/B: <span class="badge {% if project.balance_ab_order %}bg-success{% else %}bg-secondary{% endif %}">{{ project.balance_ab_order|yesno:"Yes,No" }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
