@@ -1,5 +1,7 @@
 # Human-in-the-Loop AI Response Grading Platform
 
+[![CI](https://github.com/sanjaymouraly/human-in-the-loop-ai-grading-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/sanjaymouraly/human-in-the-loop-ai-grading-platform/actions/workflows/ci.yml)
+
 A human-in-the-loop platform for grading AI responses against rubrics and analysing reviewer disagreement.
 
 ## Features
